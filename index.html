@@ -392,7 +392,41 @@
             // 【Discord通知】回答者が募集人数に達した（全員揃った）瞬間の自動通知
             if(participants.length === data.maxCount && data.webhookUrl) {
                 const pageUrl = window.location.href;
-                await sendDiscordNotification(data.webhookUrl, `🎉【${data.scenario}】の回答が全員揃いました！\n日程を確認して確定させてください！\n${pageUrl}`);
+                
+                // 各日程の「◯」の数を集計
+                const counts = {};
+                Object.keys(data.dates).forEach(d => counts[d] = 0);
+                participants.forEach(p => {
+                    Object.entries(p.dates).forEach(([date, mark]) => {
+                        if(mark === '◯' && counts[date] !== undefined) counts[date]++;
+                    });
+                });
+
+                // 最大で何人集まったかを計算
+                let maxCount = 0;
+                Object.values(counts).forEach(c => { if(c > maxCount) maxCount = c; });
+                
+                // 最も集まりが良い（または全員揃った）日程を抽出して並び替え
+                const bestDates = Object.keys(counts).filter(d => counts[d] === maxCount).sort(sortDates);
+                const deficit = data.maxCount - maxCount;
+
+                // メッセージ文章の組み立て（ご指定のレイアウトを反映）
+                let msg = `**【つぶたく】日程回答が全員揃いました！**\n調整中のシナリオ：【${data.scenario}】\n\n`;
+                msg += `【${data.scenario}】の回答が全員揃いました！候補日は以下の通りです。\n\n`;
+                
+                if (deficit === 0) {
+                    msg += `■ 開催可能日\n`;
+                } else {
+                    msg += `■ 有力な候補日（あと${deficit}人で全員◯）\n`;
+                }
+
+                bestDates.forEach(d => {
+                    msg += `・${d}\n`;
+                });
+
+                msg += `\n以下のリンクより詳細を確認できます。\n${pageUrl}`;
+
+                await sendDiscordNotification(data.webhookUrl, msg);
             }
 
             alert("送信しました！"); location.hash = ""; location.reload();
