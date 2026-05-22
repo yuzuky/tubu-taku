@@ -411,8 +411,7 @@
                 const deficit = data.maxCount - maxCount;
 
                 // メッセージ文章の組み立て（ご指定のレイアウトを反映）
-                let msg = `**【つぶたく】日程回答が全員揃いました！**\n調整中のシナリオ：【${data.scenario}】\n\n`;
-                msg += `【${data.scenario}】の回答が全員揃いました！候補日は以下の通りです。\n\n`;
+                let msg = `【${data.scenario}】の回答が全員揃いました！候補日は以下の通りです。\n\n`;
                 
                 if (deficit === 0) {
                     msg += `■ 開催可能日\n`;
