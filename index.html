@@ -94,7 +94,7 @@
                 <div class="px-1 space-y-2">
                     <input type="text" id="pl-name" placeholder="あなたのお名前" class="w-full p-4 bg-slate-50 border-none rounded-xl outline-none border transition-all focus:ring-1 focus:ring-green-400">
                     <button id="impossible-all-btn" onclick="toggleImpossibleAll()" class="w-full border-2 border-red-200 text-red-500 bg-red-50/30 py-3 rounded-xl text-xs font-bold transition-all active:scale-98">
-                        ❌ すべての日程が無理
+                        ❌ 全ての日程が無理
                     </button>
                 </div>
                 <div id="pl-calendar" class="grid grid-cols-3 gap-2"></div>
@@ -340,7 +340,7 @@
                 });
             } else {
                 btn.className = "w-full border-2 border-red-200 text-red-500 bg-red-50/30 py-3 rounded-xl text-xs font-bold transition-all active:scale-98";
-                btn.innerText = "❌ すべての日程が無理（不参加として回答）";
+                btn.innerText = "❌ 全ての日程が無理";
             }
         };
 
@@ -428,7 +428,7 @@
         window.submitParticipation = async () => {
             const name = document.getElementById('pl-name').value.trim();
             if(!name) return alert("お名前を入力してください");
-            if(!isImpossibleAllMode && Object.keys(selectedDates).length === 0) return alert("日程を選択するか「すべての日程が無理」ボタンを押してください");
+            if(!isImpossibleAllMode && Object.keys(selectedDates).length === 0) return alert("日程を選択するか「全ての日程が無理」ボタンを押してください");
             
             const eventRef = doc(db, "events", location.hash.substring(1));
             const snap = await getDoc(eventRef);
