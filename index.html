@@ -241,7 +241,7 @@
                 
                 if(webhookUrl) {
                     const pageUrl = window.location.href.split('#')[0] + '#' + docRef.id;
-                    const msg = `【${scenario}】の卓が立ちました。\nGM: ${gm}\n回答期限: ${deadline.replace(/-/g, '/')}\n\n以下のリンクより日程投票お願いします！\n${pageUrl}`;
+                    const msg = `【${scenario}】\nGM: ${gm}\n回答期限: ${deadline.replace(/-/g, '/')}\n\n以下のリンクより日程投票お願いします！\n${pageUrl}`;
                     await sendDiscordNotification(webhookUrl, msg);
                 }
                 location.hash = docRef.id; 
@@ -468,8 +468,7 @@
                 const bestDates = Object.keys(counts).filter(d => counts[d] === maxCount).sort(sortDates);
                 const deficit = data.maxCount - maxCount;
 
-                let msg = `**【つぶたく】日程回答が全員揃いました！**\n調整中のシナリオ：【${data.scenario}】\n\n`;
-                msg += `【${data.scenario}】の回答が全員揃いました！候補日は以下の通りです。\n\n`;
+                let msg = `**【つぶたく】日程回答が全員揃いました！**\n候補日は以下の通りです。\n\n`;
                 
                 if (deficit === 0) {
                     msg += `■ 開催可能日\n`;
