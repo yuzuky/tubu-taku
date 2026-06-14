@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>つぶたく - 卓を募集する</title>
+<meta name="robots" content="noindex,nofollow">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap');
+  body { font-family: 'Noto Sans JP', sans-serif; background-color: #f9fafb; color: #374151; }
+  .logo-tsu { color: #4285F4; } .logo-bu { color: #EA4335; } .logo-ta { color: #FBBC05; } .logo-ku { color: #34A853; }
+  input[type="text"], input[type="number"], textarea, select {
+    -webkit-appearance: none; appearance: none;
+  }
+  .field-error { display: none; color: #ef4444; font-size: 11px; margin-top: 4px; }
+  .field-error.show { display: block; }
+  textarea { resize: vertical; }
+  .type-btn { transition: all 0.15s; }
+  .type-btn.active { border-color: #2563eb; background-color: #eff6ff; }
+  .type-btn.active .type-icon { transform: scale(1.1); }
+  .upload-zone { border: 2px dashed #e5e7eb; transition: border-color 0.15s; }
+  .upload-zone:hover { border-color: #93c5fd; }
+  .upload-zone.has-file { border-color: #22c55e; background-color: #f0fdf4; }
+  #preview-img { display: none; }
+  #preview-img.show { display: block; }
+</style>
+</head>
+<body class="max-w-md mx-auto min-h-screen shadow-md bg-white relative pb-16">
+
+<!-- ヘッダー -->
+<header class="bg-white border-b px-4 py-4 sticky top-0 z-50 flex items-center justify-between">
+  <a href="index.html" class="text-slate-500 text-sm font-bold flex items-center">
+    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>戻る
+  </a>
+  <h1 class="text-xl font-black tracking-tighter cursor-pointer" onclick="location.href='index.html'">
+    <span class="logo-tsu">つ</span><span class="logo-bu">ぶ</span><span class="logo-ta">た</span><span class="logo-ku">く</span>
+  </h1>
+  <div class="w-10"></div>
+</header>
+
+<main class="p-5 space-y-5" id="mainForm">
+
+  <div class="pt-2 pb-1">
+    <p class="text-slate-400 text-xs tracking-widest font-bold text-center">RECRUIT</p>
+    <h2 class="text-xl font-bold text-slate-800 text-center mt-1">卓を募集する</h2>
+    <p class="text-xs text-slate-400 text-center mt-1">入力後、Discordの募集チャンネルに自動投稿されます</p>
+  </div>
+
+  <!-- ジャンル選択 -->
+  <div class="space-y-2">
+    <p class="text-xs font-bold text-slate-400 px-1">ジャンル <span class="text-red-400">*</span></p>
+    <div class="grid grid-cols-2 gap-3">
+      <button class="type-btn active border-2 border-blue-600 bg-blue-50 rounded-2xl p-4 text-center" 
+              onclick="selectType('trpg', this)">
+        <span class="type-icon text-2xl block mb-1 transition-transform">🎲</span>
+        <span class="font-bold text-slate-800 text-sm">TRPG</span>
+        <span class="text-[10px] text-slate-400 block mt-0.5">テーブルトークRPG</span>
+      </button>
+      <button class="type-btn border-2 border-slate-100 bg-white rounded-2xl p-4 text-center"
+              onclick="selectType('madamis', this)">
+        <span class="type-icon text-2xl block mb-1 transition-transform">🔍</span>
+        <span class="font-bold text-slate-800 text-sm">マダミス</span>
+        <span class="text-[10px] text-slate-400 block mt-0.5">マーダーミステリー</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 基本情報 -->
+  <div class="bg-slate-50 rounded-2xl p-4 space-y-4">
+    <p class="text-xs font-bold text-slate-400">基本情報</p>
+
+    <div>
+      <label class="text-xs font-bold text-slate-500 mb-1 block">シナリオ名 <span class="text-red-400">*</span></label>
+      <input type="text" id="scenarioName" placeholder="例：深淵の探偵たち"
+        class="w-full p-4 bg-white border-none rounded-xl outline-none focus:ring-1 focus:ring-blue-400 text-sm">
+      <p class="field-error" id="err-scenarioName">シナリオ名を入力してください</p>
+    </div>
+
+    <div>
+      <label class="text-xs font-bold text-slate-500 mb-1 block">シナリオ概要 <span class="text-red-400">*</span></label>
+      <textarea id="scenarioDesc" rows="3" placeholder="どんなシナリオか簡単に説明してください"
+        class="w-full p-4 bg-white border-none rounded-xl outline-none focus:ring-1 focus:ring-blue-400 text-sm"></textarea>
+      <p class="field-error" id="err-scenarioDesc">概要を入力してください</p>
+    </div>
+  </div>
+
+  <!-- 募集設定 -->
+  <div class="bg-slate-50 rounded-2xl p-4 space-y-4">
+    <p class="text-xs font-bold text-slate-400">募集設定</p>
+
+    <!-- 人数 -->
+    <div>
+      <label class="text-xs font-bold text-slate-500 mb-1 block">募集人数 <span class="text-red-400">*</span></label>
+      <div class="flex items-center gap-3">
+        <input type="number" id="maxPlayers" value="4" min="1" max="20"
+          class="w-24 p-4 bg-white border-none rounded-xl outline-none focus:ring-1 focus:ring-blue-400 text-sm text-center font-bold">
+        <span class="text-sm text-slate-400">人</span>
+      </div>
+
+      <!-- 人数可変トグル -->
+      <label class="flex items-center gap-2 mt-3 cursor-pointer select-none">
+        <div class="relative">
+          <input type="checkbox" id="flexToggle" class="sr-only" onchange="toggleFlex()">
+          <div id="toggleBg" class="w-10 h-6 bg-slate-200 rounded-full transition-colors"></div>
+          <div id="toggleDot" class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform"></div>
+        </div>
+        <span class="text-xs font-bold text-slate-500">人数可変にする</span>
+      </label>
+
+      <div id="rangeInputs" class="hidden flex items-center gap-2 mt-3 text-sm text-slate-500">
+        最小
+        <input type="number" id="minPlayers" value="2" min="1" max="20"
+          class="w-20 p-3 bg-white border-none rounded-xl outline-none focus:ring-1 focus:ring-blue-400 text-center font-bold text-sm">
+        人〜最大
+        <input type="number" id="maxPlayersRange" value="4" min="1" max="20"
+          class="w-20 p-3 bg-white border-none rounded-xl outline-none focus:ring-1 focus:ring-blue-400 text-center font-bold text-sm">
+        人
+      </div>
+      <p class="field-error" id="err-players">人数を入力してください</p>
+    </div>
+
+    <!-- プレイ時間 -->
+    <div>
+      <label class="text-xs font-bold text-slate-500 mb-1 block">プレイ時間 <span class="text-red-400">*</span></label>
+      <input type="text" id="playTime" placeholder="例：3〜4時間、半日"
+        class="w-full p-4 bg-white border-none rounded-xl outline-none focus:ring-1 focus:ring-blue-400 text-sm">
+      <p class="field-error" id="err-playTime">プレイ時間を入力してください</p>
+    </div>
+  </div>
+
+  <!-- 任意項目 -->
+  <div class="bg-slate-50 rounded-2xl p-4 space-y-4">
+    <p class="text-xs font-bold text-slate-400">任意項目</p>
+
+    <!-- 画像 -->
+    <div>
+      <label class="text-xs font-bold text-slate-500 mb-1 block">関連画像</label>
+      <div class="upload-zone rounded-xl p-5 text-center cursor-pointer relative" id="uploadZone"
+           onclick="document.getElementById('imageFile').click()">
+        <input type="file" id="imageFile" accept="image/*" class="hidden" onchange="previewImage(event)">
+        <div id="uploadPrompt">
+          <div class="text-2xl mb-1">🖼️</div>
+          <p class="text-xs text-slate-400">タップして画像を選択</p>
+        </div>
+        <img id="preview-img" class="max-w-full rounded-lg mx-auto" alt="プレビュー">
+      </div>
+    </div>
+
+    <!-- 案内文 -->
+    <div>
+      <label class="text-xs font-bold text-slate-500 mb-1 block">卓成立時の案内文</label>
+      <textarea id="guideText" rows="3"
+        placeholder="事前準備、キャラ作成について、持ち物など"
+        class="w-full p-4 bg-white border-none rounded-xl outline-none focus:ring-1 focus:ring-blue-400 text-sm"></textarea>
+    </div>
+  </div>
+
+  <!-- 送信ボタン -->
+  <button id="submitBtn" onclick="submitForm()"
+    class="w-full bg-blue-600 text-white p-5 rounded-xl font-bold shadow-lg shadow-blue-100 active:scale-95 transition-all text-base">
+    📨 Discordに投稿する
+  </button>
+
+</main>
+
+<!-- 結果表示（成功・失敗） -->
+<div id="resultBox" class="hidden p-5">
+  <div id="resultCard" class="rounded-2xl p-8 text-center border space-y-3">
+    <div id="resultIcon" class="text-4xl"></div>
+    <h2 id="resultTitle" class="text-lg font-bold text-slate-800"></h2>
+    <p id="resultMsg" class="text-xs text-slate-400"></p>
+  </div>
+</div>
+
+<!-- トークンなし表示 -->
+<div id="noTokenBox" class="hidden p-5">
+  <div class="bg-red-50 border border-red-200 rounded-2xl p-8 text-center space-y-2">
+    <div class="text-3xl">⚠️</div>
+    <h2 class="font-bold text-red-600">リンクが無効です</h2>
+    <p class="text-xs text-slate-400">Discordで <code class="bg-slate-100 px-1 rounded">/session</code> コマンドを使って<br>リンクを発行してください。</p>
+  </div>
+</div>
+
+<script>
+  // ⚠️ ここをRailwayのURLに書き換えてください
+  const BOT_SERVER_URL = tubutaku-bot-production.up.railway.app;
+
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token');
+
+  // トークンチェック
+  if (!token) {
+    document.getElementById('mainForm').classList.add('hidden');
+    document.getElementById('noTokenBox').classList.remove('hidden');
+  }
+
+  let selectedType = 'trpg';
+  let imageBase64 = null;
+
+  function selectType(type, el) {
+    selectedType = type;
+    document.querySelectorAll('.type-btn').forEach(btn => {
+      btn.classList.remove('active', 'border-blue-600', 'bg-blue-50');
+      btn.classList.add('border-slate-100', 'bg-white');
+    });
+    el.classList.add('active', 'border-blue-600', 'bg-blue-50');
+    el.classList.remove('border-slate-100', 'bg-white');
+  }
+
+  function toggleFlex() {
+    const checked = document.getElementById('flexToggle').checked;
+    const bg = document.getElementById('toggleBg');
+    const dot = document.getElementById('toggleDot');
+    const range = document.getElementById('rangeInputs');
+    const fixed = document.getElementById('maxPlayers').parentElement;
+
+    bg.classList.toggle('bg-blue-500', checked);
+    bg.classList.toggle('bg-slate-200', !checked);
+    dot.style.transform = checked ? 'translateX(16px)' : '';
+    range.classList.toggle('hidden', !checked);
+    fixed.classList.toggle('hidden', checked);
+  }
+
+  function previewImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      imageBase64 = e.target.result.split(',')[1];
+      const img = document.getElementById('preview-img');
+      img.src = e.target.result;
+      img.classList.add('show');
+      document.getElementById('uploadPrompt').classList.add('hidden');
+      document.getElementById('uploadZone').classList.add('has-file');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function showFieldError(id, show) {
+    const el = document.getElementById('err-' + id);
+    if (el) el.classList.toggle('show', show);
+  }
+
+  async function submitForm() {
+    if (!token) return;
+
+    const scenarioName = document.getElementById('scenarioName').value.trim();
+    const scenarioDesc = document.getElementById('scenarioDesc').value.trim();
+    const playTime = document.getElementById('playTime').value.trim();
+    const isFlex = document.getElementById('flexToggle').checked;
+    const maxPlayers = isFlex
+      ? document.getElementById('maxPlayersRange').value
+      : document.getElementById('maxPlayers').value;
+    const minPlayers = isFlex ? document.getElementById('minPlayers').value : maxPlayers;
+    const guideText = document.getElementById('guideText').value.trim();
+
+    let hasError = false;
+    showFieldError('scenarioName', !scenarioName); if (!scenarioName) hasError = true;
+    showFieldError('scenarioDesc', !scenarioDesc); if (!scenarioDesc) hasError = true;
+    showFieldError('playTime', !playTime);         if (!playTime) hasError = true;
+    showFieldError('players', !maxPlayers);        if (!maxPlayers) hasError = true;
+    if (hasError) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = '送信中…';
+
+    try {
+      const res = await fetch(`${BOT_SERVER_URL}/post-recruitment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token, type: selectedType,
+          scenarioName, scenarioDesc,
+          recruitType: isFlex ? 'flex' : 'fixed',
+          minPlayers, maxPlayers,
+          playTime, guideText,
+          imageBase64,
+        })
+      });
+
+      const data = await res.json();
+      document.getElementById('mainForm').classList.add('hidden');
+      const box = document.getElementById('resultBox');
+      box.classList.remove('hidden');
+      const card = document.getElementById('resultCard');
+
+      if (res.ok) {
+        card.className = 'rounded-2xl p-8 text-center border space-y-3 bg-green-50 border-green-200';
+        document.getElementById('resultIcon').textContent = '✅';
+        document.getElementById('resultTitle').textContent = '投稿しました！';
+        document.getElementById('resultMsg').textContent = 'Discordの募集チャンネルを確認してください。このタブは閉じて大丈夫です。';
+      } else {
+        card.className = 'rounded-2xl p-8 text-center border space-y-3 bg-red-50 border-red-200';
+        document.getElementById('resultIcon').textContent = '❌';
+        document.getElementById('resultTitle').textContent = '投稿に失敗しました';
+        document.getElementById('resultMsg').textContent = data.error || '時間をおいて再度お試しください。';
+        document.getElementById('mainForm').classList.remove('hidden');
+        box.classList.add('hidden');
+        btn.disabled = false;
+        btn.textContent = '📨 Discordに投稿する';
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = '📨 Discordに投稿する';
+      alert('通信エラーが発生しました。ネットワーク接続を確認してください。');
+    }
+  }
+</script>
+</body>
+</html>
