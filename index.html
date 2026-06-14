@@ -37,8 +37,14 @@
                 <p class="text-2xl font-bold leading-tight text-slate-800">◯と△だけで、<br>もっと手軽に。</p>
             </div>
             <div class="space-y-4">
-                <button onclick="startCreate()" class="w-full bg-blue-600 text-white p-6 rounded-2xl text-lg font-bold shadow-lg shadow-blue-100 active:scale-95 transition-all">
-                    卓を立てる <span class="text-xs font-normal opacity-80 block mt-1">(GM)</span>
+                <!-- ✅ 追加：Discordから来た人向けの募集フォームボタン -->
+                <a href="form.html" target="_blank"
+                   class="w-full bg-blue-600 text-white p-6 rounded-2xl text-lg font-bold shadow-lg shadow-blue-100 active:scale-95 transition-all flex flex-col items-center">
+                    卓を募集する
+                    <span class="text-xs font-normal opacity-80 mt-1">（GM・Discordで /session を使う方）</span>
+                </a>
+                <button onclick="startCreate()" class="w-full bg-white border-2 border-slate-100 text-slate-600 p-6 rounded-2xl text-lg font-bold active:scale-95 transition-all">
+                    卓を立てる <span class="text-xs font-normal opacity-50 block mt-1">(GM・日程調整のみ)</span>
                 </button>
                 <button onclick="showScreen('list')" class="w-full bg-white border-2 border-slate-100 text-slate-600 p-6 rounded-2xl text-lg font-bold active:scale-95 transition-all">
                     卓に参加する <span class="text-xs font-normal opacity-50 block mt-1">(PL)</span>
@@ -110,7 +116,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, getDoc, getDocs, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // Firebase 接続設定
         const firebaseConfig = {
             apiKey: "AIzaSyA8swb1CqfWcE-2OnIKH_BPh028MpUlrKA",
             authDomain: "tubutaku-7653b.firebaseapp.com",
@@ -131,7 +136,6 @@
         let isImpossibleAllMode = false;
         const weekDays = ["日", "月", "火", "水", "木", "金", "土"];
 
-        // Discord Webhook通知を裏で送信する関数
         async function sendDiscordNotification(webhookUrl, message) {
             if (!webhookUrl || !webhookUrl.startsWith('https://discord.com/api/webhooks/')) return;
             try {
@@ -143,7 +147,6 @@
             } catch (e) { console.error("Discord通知に失敗しました", e); }
         }
 
-        // 日付をカレンダー順に並び替える関数
         const sortDates = (a, b) => {
             const today = new Date();
             const currentYear = today.getFullYear();
@@ -157,7 +160,6 @@
             return parseWithYear(a) - parseWithYear(b);
         };
 
-        // GMカレンダーの自動生成（今月〜来月末日まで）
         window.renderGMCalendar = (existingDates = {}) => {
             const container = document.getElementById('gm-calendar');
             container.innerHTML = ''; gmSelectedDates = {...existingDates};
@@ -185,7 +187,6 @@
             }
         };
 
-        // 画面切り替えのコントロール
         window.showScreen = (name) => {
             document.querySelectorAll('#app > div').forEach(div => div.classList.add('hidden'));
             document.getElementById('screen-'+name).classList.remove('hidden');
@@ -202,7 +203,6 @@
 
         window.startCreate = () => { editMode = false; showScreen('create'); };
 
-        // 既存データの修正読み込み
         window.editEvent = async () => {
             if(!targetId) return;
             const snap = await getDoc(doc(db, "events", targetId));
@@ -221,7 +221,6 @@
             closeMenuModal();
         };
 
-        // 卓データの新規保存・更新保存処理
         window.saveEvent = async () => {
             const gm = document.getElementById('gm-name').value;
             const scenario = document.getElementById('scenario-name').value;
@@ -248,7 +247,13 @@
             }
         };
 
-        // バックグラウンドパトロール（自動クリーンアップ ＆ リマインダー）
+        // ✅ 修正：リマインダーの重複送信バグを修正
+        // 変更点：
+        // 1. reminderSentフィールドがないデータ（undefined）も送信済みとして扱わないよう、
+        //    明示的に === false チェックに変更
+        // 2. Firestoreへの書き込みを先に行ってから通知を送ることで、
+        //    複数ユーザーが同時にアクセスしてもレースコンディションを最小化
+        // 3. 期限切れから30日以上経過した卓は削除（既存通り）
         async function runBackgroundTasks(snapshot) {
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
@@ -262,26 +267,37 @@
                 const data = d.data();
                 const eventRef = doc(db, "events", d.id);
 
+                // 30日以上経過した卓を削除
                 if (data.deadline && data.deadline < oneMonthAgoStr) {
                     await deleteDoc(eventRef);
                     continue;
                 }
 
-                if (data.deadline && data.deadline < todayStr && currentHour >= 17 && currentHour < 23 && !data.reminderSent) {
-                    if (data.participants.length < data.maxCount) {
+                // ✅ 修正1: undefined（古いデータ）の場合も送らないよう === false で厳密チェック
+                // ✅ 修正2: updateDocを先に実行してから通知を送る（重複防止）
+                if (
+                    data.deadline &&
+                    data.deadline < todayStr &&
+                    currentHour >= 17 && currentHour < 23 &&
+                    data.reminderSent === false  // undefinedは除外
+                ) {
+                    if (data.participants.length < data.maxCount && data.webhookUrl) {
+                        // ✅ 先にFirestoreを更新してフラグを立てる
+                        await updateDoc(eventRef, { reminderSent: true });
+
+                        // その後で通知を送る
                         const unsubmittedCount = data.maxCount - data.participants.length;
-                        if (data.webhookUrl) {
-                            const pageUrl = window.location.href.split('#')[0] + '#' + d.id;
-                            const msg = `【${data.scenario}】日程調整のリマインダー\n回答期限を過ぎていますが、あと ${unsubmittedCount} 名の方が未記入です！\n未定の場合はその旨ご連絡ください。\n${pageUrl}`;
-                            await sendDiscordNotification(data.webhookUrl, msg);
-                        }
+                        const pageUrl = window.location.href.split('#')[0] + '#' + d.id;
+                        const msg = `【${data.scenario}】日程調整のリマインダー\n回答期限を過ぎていますが、あと ${unsubmittedCount} 名の方が未記入です！\n未定の場合はその旨ご連絡ください。\n${pageUrl}`;
+                        await sendDiscordNotification(data.webhookUrl, msg);
+                    } else {
+                        // 全員回答済みでも未送信フラグが残っている場合はフラグだけ立てる
                         await updateDoc(eventRef, { reminderSent: true });
                     }
                 }
             }
         }
 
-        // 募集中の卓一覧データを描画
         window.loadEvents = async () => {
             const listEl = document.getElementById('event-list');
             listEl.innerHTML = '<p class="text-center text-slate-400 py-10 text-xs">読込中...</p>';
@@ -323,7 +339,6 @@
             navigator.clipboard.writeText(text); alert("URLをコピーしました！"); 
         };
 
-        // 「全日程無理」ボタン切り替え処理
         window.toggleImpossibleAll = () => {
             const btn = document.getElementById('impossible-all-btn');
             isImpossibleAllMode = !isImpossibleAllMode;
@@ -331,7 +346,6 @@
             if(isImpossibleAllMode) {
                 btn.className = "w-full text-white bg-red-500 py-3 rounded-xl text-xs font-bold transition-all active:scale-98 shadow-md shadow-red-100";
                 btn.innerText = "❌ すべての日程が無理（選択中）";
-                // カレンダーの選択を全クリア
                 selectedDates = {};
                 document.querySelectorAll('#pl-calendar > div').forEach(el => {
                     const mark = el.querySelector('.mark');
@@ -344,7 +358,6 @@
             }
         };
 
-        // 手動集計テキストの生成
         window.generateAndCopyReminder = () => {
             const data = currentEventData;
             const counts = {};
@@ -371,7 +384,6 @@
             navigator.clipboard.writeText(msg); alert("回答状況をコピーしました！");
         };
 
-        // 卓の詳細ページ（投票画面）の描画
         async function showDetail(id) {
             showScreen('detail');
             isImpossibleAllMode = false;
@@ -383,7 +395,6 @@
             const isExpired = data.deadline && data.deadline < new Date().toISOString().split('T')[0];
             if(isExpired) document.getElementById('reminder-area').classList.remove('hidden'); else document.getElementById('reminder-area').classList.add('hidden');
             
-            // 全日程無理の人を抽出
             const impossibleAllNames = (data.participants || []).filter(p => p.isImpossibleAll).map(p => p.name);
             let impossibleHtml = "";
             if(impossibleAllNames.length > 0) {
@@ -414,7 +425,7 @@
                 
                 btn.innerHTML = `<div class="opacity-60 font-bold">${dateStr}</div><div class="font-bold text-lg mark mt-1">-</div>${rows}`;
                 btn.onclick = () => {
-                    if(isImpossibleAllMode) window.toggleImpossibleAll(); // 全日程無理モードなら解除
+                    if(isImpossibleAllMode) window.toggleImpossibleAll();
                     const mark = btn.querySelector('.mark');
                     if(mark.innerText === '-') { mark.innerText = '◯'; btn.classList.replace('status-none', 'status-ok'); selectedDates[dateStr] = '◯'; }
                     else if(mark.innerText === '◯') { mark.innerText = '△'; btn.classList.replace('status-ok', 'status-maybe'); selectedDates[dateStr] = '△'; }
@@ -424,7 +435,6 @@
             });
         }
 
-        // 回答送信処理
         window.submitParticipation = async () => {
             const name = document.getElementById('pl-name').value.trim();
             if(!name) return alert("お名前を入力してください");
@@ -446,14 +456,12 @@
             else { participants.push(answerData); }
             await updateDoc(eventRef, { participants });
 
-            // 【Discord通知】全員揃った瞬間の自動通知
             if(participants.length === data.maxCount && data.webhookUrl) {
                 const pageUrl = window.location.href;
                 
                 const activeParticipants = participants.filter(p => !p.isImpossibleAll);
                 const impossibleAllNames = participants.filter(p => p.isImpossibleAll).map(p => p.name);
 
-                // 各日程の「◯」の数を集計
                 const counts = {};
                 Object.keys(data.dates).forEach(d => counts[d] = 0);
                 activeParticipants.forEach(p => {
